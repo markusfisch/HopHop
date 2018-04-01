@@ -74,8 +74,12 @@ var M = Math,
 	BUNNY_HOP3 = 5,
 	BUNNY_HOP4 = 6,
 	BUNNY_HOP5 = 7,
-	CARROT = 8,
-	FLOWER = 9,
+	BUTTERFLY0 = 8,
+	BUTTERFLY1 = 9,
+	BUTTERFLY2 = 10,
+	GRASS0 = 11,
+	GRASS1 = 12,
+	GRASS2 = 13,
 	atlas,
 	sprites = [],
 	gl,
@@ -96,7 +100,6 @@ var M = Math,
 	halfHeight,
 	yMax,
 	scaleFactor,
-	maxSpriteHeight = 0,
 	now,
 	factor,
 	last,
@@ -106,7 +109,8 @@ var M = Math,
 	keysDown = [],
 	entitiesLength,
 	entities,
-	bunny
+	bunny,
+	won = false
 
 M.TAU = M.TAU || M.PI * 2
 M.PI2 = M.PI2 || M.PI / 2
@@ -158,13 +162,16 @@ function drawEntity(e) {
 		frames = e.moveLength
 		sprite = e.move[e.frame % frames]
 		freq = e.moveFreq
+		if (e.moved) {
+			e.moved()
+		}
 	}
 	if (frames > 0 && now - e.last > freq) {
 		++e.frame
 		e.last = now
 	}
 	sprite = sprites[sprite]
-	drawSprite(sprite, e.x, e.y - (maxSpriteHeight - sprite.h), e.direction)
+	drawSprite(sprite, e.x, e.y - (e.max - sprite.h), e.direction)
 }
 
 function initFrame() {
@@ -191,7 +198,7 @@ function setTarget(e, x, y) {
 }
 
 function input() {
-	if (pointersLength > 0) {
+	if (!won && pointersLength > 0) {
 		setTarget(bunny, pointersX[0], pointersY[0])
 	}
 }
@@ -263,11 +270,111 @@ function keyDown(event) {
 	setKey(event, true)
 }
 
+function getRandomGrass() {
+	switch (M.round(M.random() * 3)) {
+	default:
+	case 0: return GRASS0
+	case 1: return GRASS1
+	case 2: return GRASS2
+	}
+}
+
+function getMaxHeight(spriteIds) {
+	var max = 0
+	for (var i = spriteIds.length; i-- > 0;) {
+		max = M.max(max, sprites[spriteIds[i]].h)
+	}
+	return max
+}
+
+function createEntities() {
+	entities = []
+
+	var butterflyFrames = [BUTTERFLY0, BUTTERFLY1, BUTTERFLY2, BUTTERFLY1]
+	entities.push({
+		x: 1.2,
+		y: 0,
+		tx: .75,
+		ty: 0,
+		speed: .02,
+		direction: -1,
+		idle: butterflyFrames,
+		idleFreq: 50,
+		move: butterflyFrames,
+		moveFreq: 50,
+		moved: function() {
+			if (won) {
+				return
+			}
+			var dx = bunny.x - this.x,
+				dy = bunny.y - this.y,
+				d = dx*dx + dy*dy
+			if (d < .1) {
+				this.tx = this.x
+				this.ty = this.y
+				won = true
+			} else if (d < .12) {
+				dx = -dx
+				dy = -dy
+				this.tx = bunny.x + dx * 2
+				this.ty = bunny.y + dy * 2
+			}
+		},
+		finished: function() {
+			if (!won) {
+				this.tx = M.random() * 2 - 1
+				this.ty = M.random() * 2 * yMax - yMax
+			}
+		},
+	})
+
+	entities.push(bunny = {
+		x: -1.2,
+		y: 0,
+		tx: 0,
+		ty: 0,
+		speed: .012,
+		direction: 1,
+		idle: [BUNNY_IDLE0, BUNNY_IDLE1],
+		idleFreq: 2000,
+		move: [BUNNY_HOP0, BUNNY_HOP1, BUNNY_HOP2, BUNNY_HOP3, BUNNY_HOP4,
+			BUNNY_HOP5],
+		moveFreq: 100,
+	})
+
+	for (var i = 16; i--;) {
+		entities.push({
+			show: true,
+			x: M.random() * 2 - 1,
+			y: M.random() * 2 * yMax - yMax,
+			idle: [getRandomGrass()],
+		})
+	}
+
+	entitiesLength = entities.length
+	for (var i = entitiesLength; i--;) {
+		var e = entities[i]
+		e.tx = typeof e.tx == 'undefined' ? e.x : 0
+		e.ty = typeof e.ty == 'undefined' ? e.y : 0
+		e.idleLength = e.idle ? e.idle.length : 0
+		e.moveLength = e.move ? e.move.length : 0
+		e.frame = 0
+		e.last = 0
+		var max = 0
+		if (e.idleLength > 0) {
+			max = getMaxHeight(e.idle)
+		}
+		if (e.moveLength > 0) {
+			max = M.max(max, getMaxHeight(e.move))
+		}
+		e.max = max
+	}
+}
+
 function scale(sprite) {
 	var size = sprite.size * scaleFactor
 	sprite.w = size
 	sprite.h = size * sprite.aspect
-	maxSpriteHeight = M.max(maxSpriteHeight, sprite.h)
 }
 
 function resize() {
@@ -300,51 +407,6 @@ function resize() {
 	}
 }
 
-function createEntities() {
-	entities = []
-	entities.push(bunny = {
-		x: -1.2,
-		y: 0,
-		tx: 0,
-		ty: 0,
-		speed: .01,
-		direction: 1,
-		idle: [BUNNY_IDLE0, BUNNY_IDLE1],
-		idleFreq: 2000,
-		move: [BUNNY_HOP0, BUNNY_HOP1, BUNNY_HOP2, BUNNY_HOP3, BUNNY_HOP4,
-			BUNNY_HOP5],
-		moveFreq: 100,
-	})
-
-	for (var i = 3; i--;) {
-		entities.push({
-			x: M.random() * 2 - 1,
-			y: M.random() * 2 - 1,
-			idle: [CARROT],
-		})
-	}
-
-	for (var i = 3; i--;) {
-		entities.push({
-			x: M.random() * 2 - 1,
-			y: M.random() * 2 - 1,
-			idle: [FLOWER],
-		})
-	}
-
-	entitiesLength = entities.length
-
-	for (var i = entitiesLength; i--;) {
-		var e = entities[i]
-		e.tx = typeof e.tx == 'undefined' ? e.x : 0
-		e.ty = typeof e.ty == 'undefined' ? e.y : 0
-		e.idleLength = e.idle ? e.idle.length : 0
-		e.moveLength = e.move ? e.move.length : 0
-		e.frame = 0
-		e.last = 0
-	}
-}
-
 function calculateSpriteRects() {
 	var res = [
 			BUNNY_IDLE0, {/*bunny_idle0*/x:1,y:35,w:28,h:32},
@@ -355,8 +417,12 @@ function calculateSpriteRects() {
 			BUNNY_HOP3, {/*bunny_hop3*/x:33,y:1,w:36,h:25},
 			BUNNY_HOP4, {/*bunny_hop4*/x:33,y:120,w:31,h:25},
 			BUNNY_HOP5, {/*bunny_hop5*/x:33,y:87,w:28,h:31},
-			CARROT, {/*carrot*/x:1,y:101,w:14,h:22},
-			FLOWER, {/*flower*/x:1,y:125,w:9,h:25},
+			BUTTERFLY0, {/*butterfly0*/x:1,y:101,w:11,h:11},
+			BUTTERFLY1, {/*butterfly1*/x:1,y:114,w:9,h:9},
+			BUTTERFLY2, {/*butterfly2*/x:14,y:101,w:9,h:9},
+			GRASS0, {/*grass0*/x:22,y:114,w:7,h:6},
+			GRASS1, {/*grass1*/x:25,y:101,w:5,h:5},
+			GRASS2, {/*grass2*/x:12,y:114,w:8,h:6},
 		],
 		positions = [],
 		xf = 1 / atlas.width,
@@ -456,10 +522,10 @@ function start() {
 	gl.clearColor(.345, .678, .384, 1)
 
 	initBuffers(program)
-	createEntities()
 
 	W.onresize = resize
 	resize()
+	createEntities()
 
 	D.onkeydown = keyDown
 	D.onkeyup = keyUp
