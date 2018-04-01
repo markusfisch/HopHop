@@ -18,7 +18,6 @@ $(ATLAS): $(SPRITES)
 		MAX_SIZE=256 \
 			MIN_SIZE=256 \
 			MARGIN=1 \
-			EXPAND='tile_*' \
 			mkatlas ../$(SPRITES) | \
 		patchatlas index.html
 	convert $(ATLAS) \

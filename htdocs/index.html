@@ -66,15 +66,16 @@ var M = Math,
 	D = document,
 	W = window,
 	FA = Float32Array,
-	TILE_GRASS = 0,
-	BUNNY_IDLE0 = 1,
-	BUNNY_IDLE1 = 2,
-	BUNNY_WALK0 = 3,
-	BUNNY_WALK1 = 4,
-	BUNNY_WALK2 = 5,
-	BUNNY_WALK3 = 6,
-	BUNNY_WALK4 = 7,
-	BUNNY_WALK5 = 8,
+	BUNNY_IDLE0 = 0,
+	BUNNY_IDLE1 = 1,
+	BUNNY_HOP0 = 2,
+	BUNNY_HOP1 = 3,
+	BUNNY_HOP2 = 4,
+	BUNNY_HOP3 = 5,
+	BUNNY_HOP4 = 6,
+	BUNNY_HOP5 = 7,
+	CARROT = 8,
+	FLOWER = 9,
 	atlas,
 	sprites = [],
 	gl,
@@ -95,6 +96,7 @@ var M = Math,
 	halfHeight,
 	yMax,
 	scaleFactor,
+	maxSpriteHeight = 0,
 	now,
 	factor,
 	last,
@@ -103,49 +105,66 @@ var M = Math,
 	pointersY = [],
 	keysDown = [],
 	entitiesLength,
-	entities
+	entities,
+	bunny
 
 M.TAU = M.TAU || M.PI * 2
 M.PI2 = M.PI2 || M.PI / 2
 
-function drawSprite(sprite, x, y, a, xm, ym) {
+function drawSprite(sprite, x, y, wm, hm) {
 	gl.bindBuffer(gl.ARRAY_BUFFER, texturePositionBuffer)
 	gl.vertexAttribPointer(texturePositionLoc, 2, gl.FLOAT, gl.FALSE, 0,
 		sprite.index << 5)
 
-	xm = xm || 1
-	ym = ym || 1
-
-	var w = sprite.w * xm,
-		h = sprite.h * ym,
-		sin = M.sin(a),
-		cos = M.cos(a)
-
-	transformation[0] = w * sin
-	transformation[1] = w * -cos
-
-	transformation[3] = h * cos
-	transformation[4] = h * sin
+	transformation[0] = transformation[8] = sprite.w * (wm || 1)
+	transformation[4] = sprite.h * (hm || 1)
 
 	transformation[6] = x
 	transformation[7] = y
 
 	gl.uniformMatrix3fv(transformationLoc, gl.FALSE, transformation)
-
 	gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
-var bunny = 1;
-var lastFrame = 0;
-function drawBunny() {
-	//drawSprite(sprites[BUNNY_IDLE0], 0, 0, M.PI2)
-	if (now - lastFrame > 100) {
-		++bunny
-		bunny %= 9
-		bunny = M.max(4, bunny)
-		lastFrame = now;
+function drawEntity(e) {
+	var sprite,
+		freq,
+		frames,
+		dx = e.tx - e.x,
+		dy = e.ty - e.y,
+		adx = M.abs(dx),
+		ady = M.abs(dy)
+	if (adx < .001 && ady < .001) {
+		frames = e.idleLength
+		sprite = e.idle[e.frame % frames]
+		freq = e.idleFreq
+		if (e.finished) {
+			e.finished()
+		}
+	} else {
+		var speed = e.speed
+		if (adx > speed) {
+			var pos = dx > 0
+			e.x += pos ? speed : -speed
+			e.direction = pos ? 1 : -1
+		} else {
+			e.x = e.tx
+		}
+		if (ady > speed) {
+			e.y += dy > 0 ? speed : -speed
+		} else {
+			e.y = e.ty
+		}
+		frames = e.moveLength
+		sprite = e.move[e.frame % frames]
+		freq = e.moveFreq
 	}
-	drawSprite(sprites[bunny], 0, 0, M.PI2)
+	if (frames > 0 && now - e.last > freq) {
+		++e.frame
+		e.last = now
+	}
+	sprite = sprites[sprite]
+	drawSprite(sprite, e.x, e.y - (maxSpriteHeight - sprite.h), e.direction)
 }
 
 function initFrame() {
@@ -161,7 +180,20 @@ function initFrame() {
 	gl.uniform1i(textureLoc, 0)
 }
 
+function setTarget(e, x, y) {
+	var dx = x - e.tx,
+		dy = y - e.ty,
+		d = dx*dx + dy*dy
+	if (d > e.speed) {
+		e.tx = x
+		e.ty = y
+	}
+}
+
 function input() {
+	if (pointersLength > 0) {
+		setTarget(bunny, pointersX[0], pointersY[0])
+	}
 }
 
 function run() {
@@ -173,7 +205,10 @@ function run() {
 
 	input()
 	initFrame()
-	drawBunny()
+
+	for (var i = entitiesLength; i--;) {
+		drawEntity(entities[i])
+	}
 }
 
 function pageXToGl(x) {
@@ -232,6 +267,7 @@ function scale(sprite) {
 	var size = sprite.size * scaleFactor
 	sprite.w = size
 	sprite.h = size * sprite.aspect
+	maxSpriteHeight = M.max(maxSpriteHeight, sprite.h)
 }
 
 function resize() {
@@ -246,7 +282,7 @@ function resize() {
 	gl.canvas.height = height
 	gl.viewport(0, 0, width, height)
 
-	var ref = sprites[TILE_GRASS].size * 3
+	var ref = sprites[BUNNY_IDLE0].size * 5
 	scaleFactor = .45 / halfWidth * M.min(width / ref, height / ref)
 
 	perspective = new FA([
@@ -264,17 +300,63 @@ function resize() {
 	}
 }
 
+function createEntities() {
+	entities = []
+	entities.push(bunny = {
+		x: -1.2,
+		y: 0,
+		tx: 0,
+		ty: 0,
+		speed: .01,
+		direction: 1,
+		idle: [BUNNY_IDLE0, BUNNY_IDLE1],
+		idleFreq: 2000,
+		move: [BUNNY_HOP0, BUNNY_HOP1, BUNNY_HOP2, BUNNY_HOP3, BUNNY_HOP4,
+			BUNNY_HOP5],
+		moveFreq: 100,
+	})
+
+	for (var i = 3; i--;) {
+		entities.push({
+			x: M.random() * 2 - 1,
+			y: M.random() * 2 - 1,
+			idle: [CARROT],
+		})
+	}
+
+	for (var i = 3; i--;) {
+		entities.push({
+			x: M.random() * 2 - 1,
+			y: M.random() * 2 - 1,
+			idle: [FLOWER],
+		})
+	}
+
+	entitiesLength = entities.length
+
+	for (var i = entitiesLength; i--;) {
+		var e = entities[i]
+		e.tx = typeof e.tx == 'undefined' ? e.x : 0
+		e.ty = typeof e.ty == 'undefined' ? e.y : 0
+		e.idleLength = e.idle ? e.idle.length : 0
+		e.moveLength = e.move ? e.move.length : 0
+		e.frame = 0
+		e.last = 0
+	}
+}
+
 function calculateSpriteRects() {
 	var res = [
-			TILE_GRASS, {/*tile_grass*/x:1,y:1,w:32,h:32},
-			BUNNY_IDLE0, {/*bunny_idle0*/x:101,y:1,w:28,h:32},
-			BUNNY_IDLE1, {/*bunny_idle1*/x:131,y:1,w:29,h:30},
-			BUNNY_WALK0, {/*bunny_walk0*/x:35,y:1,w:30,h:32},
-			BUNNY_WALK1, {/*bunny_walk1*/x:67,y:1,w:32,h:29},
-			BUNNY_WALK2, {/*bunny_walk2*/x:39,y:35,w:35,h:26},
-			BUNNY_WALK3, {/*bunny_walk3*/x:1,y:35,w:36,h:25},
-			BUNNY_WALK4, {/*bunny_walk4*/x:76,y:35,w:31,h:25},
-			BUNNY_WALK5, {/*bunny_walk5*/x:162,y:1,w:28,h:31},
+			BUNNY_IDLE0, {/*bunny_idle0*/x:1,y:35,w:28,h:32},
+			BUNNY_IDLE1, {/*bunny_idle1*/x:1,y:69,w:29,h:30},
+			BUNNY_HOP0, {/*bunny_hop0*/x:1,y:1,w:30,h:32},
+			BUNNY_HOP1, {/*bunny_hop1*/x:33,y:56,w:32,h:29},
+			BUNNY_HOP2, {/*bunny_hop2*/x:33,y:28,w:35,h:26},
+			BUNNY_HOP3, {/*bunny_hop3*/x:33,y:1,w:36,h:25},
+			BUNNY_HOP4, {/*bunny_hop4*/x:33,y:120,w:31,h:25},
+			BUNNY_HOP5, {/*bunny_hop5*/x:33,y:87,w:28,h:31},
+			CARROT, {/*carrot*/x:1,y:101,w:14,h:22},
+			FLOWER, {/*flower*/x:1,y:125,w:9,h:25},
 		],
 		positions = [],
 		xf = 1 / atlas.width,
@@ -371,9 +453,10 @@ function start() {
 
 	gl.enable(gl.BLEND)
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-	gl.clearColor(0, 0, 0, 1)
+	gl.clearColor(.345, .678, .384, 1)
 
 	initBuffers(program)
+	createEntities()
 
 	W.onresize = resize
 	resize()
