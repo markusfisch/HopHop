@@ -3,12 +3,25 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width"/>
+<meta name="theme-color" content="#64c46f"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="msapplication-navbutton-color" content="#64c46f"/>
 <title>Hop Hop</title>
 <style>
 
 html, body {
 	margin: 0; padding: 0;
 	background: #111;
+	overflow: hidden;
+	-webkit-tap-highlight-color: rgba(0,0,0,0);
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	-ms-touch-action: none;
+	user-select: none;
 }
 
 canvas {
@@ -66,20 +79,35 @@ var M = Math,
 	D = document,
 	W = window,
 	FA = Float32Array,
-	BUNNY_IDLE0 = 0,
-	BUNNY_IDLE1 = 1,
-	BUNNY_HOP0 = 2,
-	BUNNY_HOP1 = 3,
-	BUNNY_HOP2 = 4,
-	BUNNY_HOP3 = 5,
-	BUNNY_HOP4 = 6,
-	BUNNY_HOP5 = 7,
-	BUTTERFLY0 = 8,
-	BUTTERFLY1 = 9,
-	BUTTERFLY2 = 10,
-	GRASS0 = 11,
-	GRASS1 = 12,
-	GRASS2 = 13,
+	DIGIT0 = 0,
+	DIGIT1 = 1,
+	DIGIT2 = 2,
+	DIGIT3 = 3,
+	DIGIT4 = 4,
+	DIGIT5 = 5,
+	DIGIT6 = 6,
+	DIGIT7 = 7,
+	DIGIT8 = 8,
+	DIGIT9 = 9,
+	SEC = 10,
+	BUNNY_IDLE0 = 11,
+	BUNNY_IDLE1 = 12,
+	BUNNY_HOP0 = 13,
+	BUNNY_HOP1 = 14,
+	BUNNY_HOP2 = 15,
+	BUNNY_HOP3 = 16,
+	BUNNY_HOP4 = 17,
+	BUNNY_HOP5 = 18,
+	BUNNY_HAPPY0 = 19,
+	BUNNY_HAPPY1 = 20,
+	BUTTERFLY0 = 21,
+	BUTTERFLY1 = 22,
+	BUTTERFLY2 = 23,
+	GRASS0 = 24,
+	GRASS1 = 25,
+	GRASS2 = 26,
+	GRASS3 = 27,
+	GRASS4 = 28,
 	atlas,
 	sprites = [],
 	gl,
@@ -100,6 +128,9 @@ var M = Math,
 	halfHeight,
 	yMax,
 	scaleFactor,
+	digitWidth,
+	digitHeight,
+	seed,
 	now,
 	factor,
 	last,
@@ -110,7 +141,9 @@ var M = Math,
 	entitiesLength,
 	entities,
 	bunny,
-	won = false
+	startTime,
+	secsToWin,
+	won = 0
 
 M.TAU = M.TAU || M.PI * 2
 M.PI2 = M.PI2 || M.PI / 2
@@ -130,7 +163,21 @@ function drawSprite(sprite, x, y, wm, hm) {
 	gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 }
 
-function drawEntity(e) {
+function drawSeconds(s) {
+	s = s + ''
+	var sec = sprites[SEC],
+		chars = s.length,
+		w = chars * digitWidth + sec.w,
+		x = w * -.5,
+		y = sprites[BUNNY_HAPPY0].h * 2
+	for (var i = 0; i < chars; ++i, x += digitWidth) {
+		var code = s.charCodeAt(i) - 48
+		drawSprite(sprites[code], x, y)
+	}
+	drawSprite(sprites[SEC], x + sec.w, y - (digitHeight - sec.h))
+}
+
+function drawEntity(e, wx, wy) {
 	var sprite,
 		freq,
 		frames,
@@ -146,7 +193,7 @@ function drawEntity(e) {
 			e.finished()
 		}
 	} else {
-		var speed = e.speed
+		var speed = e.speed * factor
 		if (adx > speed) {
 			var pos = dx > 0
 			e.x += pos ? speed : -speed
@@ -171,7 +218,7 @@ function drawEntity(e) {
 		e.last = now
 	}
 	sprite = sprites[sprite]
-	drawSprite(sprite, e.x, e.y - (e.max - sprite.h), e.direction)
+	drawSprite(sprite, e.x - wx, e.y - (e.max - sprite.h) - wy, e.direction)
 }
 
 function initFrame() {
@@ -213,8 +260,24 @@ function run() {
 	input()
 	initFrame()
 
+	var wx, wy
+	if (won) {
+		var duration = 300,
+			delta = now - won
+		if (delta < duration) {
+			wx = bunny.x / duration * delta
+			wy = bunny.y / duration * delta
+		} else {
+			wx = bunny.x
+			wy = bunny.y
+		}
+		drawSeconds(secsToWin)
+	} else {
+		wx = wy = 0
+	}
+
 	for (var i = entitiesLength; i--;) {
-		drawEntity(entities[i])
+		drawEntity(entities[i], wx, wy)
 	}
 }
 
@@ -247,6 +310,9 @@ function setPointer(event, down) {
 
 function pointerUp(event) {
 	setPointer(event, false)
+	if (won && now - won > 3000) {
+		window.location.reload()
+	}
 }
 
 function pointerMove(event) {
@@ -270,12 +336,19 @@ function keyDown(event) {
 	setKey(event, true)
 }
 
+function random() {
+	// from http://indiegamr.com/generate-repeatable-random-numbers-in-js/
+	return (seed = (seed * 9301 + 49297) % 233280) / 233280
+}
+
 function getRandomGrass() {
-	switch (M.round(M.random() * 3)) {
+	switch (M.round(random() * 4)) {
 	default:
 	case 0: return GRASS0
 	case 1: return GRASS1
 	case 2: return GRASS2
+	case 3: return GRASS3
+	case 4: return GRASS4
 	}
 }
 
@@ -309,11 +382,17 @@ function createEntities() {
 			var dx = bunny.x - this.x,
 				dy = bunny.y - this.y,
 				d = dx*dx + dy*dy
-			if (d < .1) {
-				this.tx = this.x
-				this.ty = this.y
-				won = true
-			} else if (d < .12) {
+			if (d < .08) {
+				won = now
+				secsToWin = M.round((won - startTime) / 1000)
+				this.tx = bunny.tx + .22 * bunny.direction
+				this.ty = bunny.ty - bunny.max * .15
+				bunny.idle = [BUNNY_IDLE0, BUNNY_HAPPY0, BUNNY_HAPPY1,
+					BUNNY_IDLE1]
+				bunny.idleLength = bunny.idle.length
+				bunny.idleFreq = 200
+				bunny.direction = dx > 0 ? -1 : 1
+			} else if (d < .1) {
 				dx = -dx
 				dy = -dy
 				this.tx = bunny.x + dx * 2
@@ -322,8 +401,8 @@ function createEntities() {
 		},
 		finished: function() {
 			if (!won) {
-				this.tx = M.random() * 2 - 1
-				this.ty = M.random() * 2 * yMax - yMax
+				this.tx = random() * 2 - 1
+				this.ty = random() * 2 * yMax - yMax
 			}
 		},
 	})
@@ -342,11 +421,11 @@ function createEntities() {
 		moveFreq: 100,
 	})
 
-	for (var i = 16; i--;) {
+	for (var i = 24; i--;) {
 		entities.push({
 			show: true,
-			x: M.random() * 2 - 1,
-			y: M.random() * 2 * yMax - yMax,
+			x: random() * 3 - 1.5,
+			y: random() * 3 * yMax - yMax * 1.5,
 			idle: [getRandomGrass()],
 		})
 	}
@@ -405,10 +484,25 @@ function resize() {
 	for (var id in sprites) {
 		scale(sprites[id])
 	}
+
+	digitWidth = sprites[DIGIT0].w * 2 + scaleFactor
+	digitHeight = sprites[DIGIT0].h
+	seed = M.PI
 }
 
 function calculateSpriteRects() {
 	var res = [
+			DIGIT0, {/*digit0*/x:82,y:101,w:3,h:7},
+			DIGIT1, {/*digit1*/x:77,y:101,w:3,h:7},
+			DIGIT2, {/*digit2*/x:72,y:101,w:3,h:7},
+			DIGIT3, {/*digit3*/x:67,y:101,w:3,h:7},
+			DIGIT4, {/*digit4*/x:75,y:47,w:3,h:7},
+			DIGIT5, {/*digit5*/x:70,y:47,w:3,h:7},
+			DIGIT6, {/*digit6*/x:81,y:43,w:3,h:7},
+			DIGIT7, {/*digit7*/x:84,y:19,w:3,h:7},
+			DIGIT8, {/*digit8*/x:84,y:10,w:3,h:7},
+			DIGIT9, {/*digit9*/x:84,y:1,w:3,h:7},
+			SEC, {/*sec*/x:67,y:94,w:11,h:5},
 			BUNNY_IDLE0, {/*bunny_idle0*/x:1,y:35,w:28,h:32},
 			BUNNY_IDLE1, {/*bunny_idle1*/x:1,y:69,w:29,h:30},
 			BUNNY_HOP0, {/*bunny_hop0*/x:1,y:1,w:30,h:32},
@@ -417,12 +511,16 @@ function calculateSpriteRects() {
 			BUNNY_HOP3, {/*bunny_hop3*/x:33,y:1,w:36,h:25},
 			BUNNY_HOP4, {/*bunny_hop4*/x:33,y:120,w:31,h:25},
 			BUNNY_HOP5, {/*bunny_hop5*/x:33,y:87,w:28,h:31},
-			BUTTERFLY0, {/*butterfly0*/x:1,y:101,w:11,h:11},
-			BUTTERFLY1, {/*butterfly1*/x:1,y:114,w:9,h:9},
-			BUTTERFLY2, {/*butterfly2*/x:14,y:101,w:9,h:9},
-			GRASS0, {/*grass0*/x:22,y:114,w:7,h:6},
-			GRASS1, {/*grass1*/x:25,y:101,w:5,h:5},
-			GRASS2, {/*grass2*/x:12,y:114,w:8,h:6},
+			BUNNY_HAPPY0, {/*bunny_happy0*/x:1,y:101,w:22,h:36},
+			BUNNY_HAPPY1, {/*bunny_happy1*/x:67,y:56,w:21,h:36},
+			BUTTERFLY0, {/*butterfly0*/x:71,y:1,w:11,h:11},
+			BUTTERFLY1, {/*butterfly1*/x:70,y:28,w:9,h:9},
+			BUTTERFLY2, {/*butterfly2*/x:71,y:14,w:9,h:9},
+			GRASS0, {/*grass0*/x:81,y:28,w:7,h:6},
+			GRASS1, {/*grass1*/x:81,y:36,w:5,h:5},
+			GRASS2, {/*grass2*/x:70,y:39,w:8,h:6},
+			GRASS3, {/*grass3*/x:80,y:94,w:3,h:5},
+			GRASS4, {/*grass4*/x:85,y:94,w:3,h:4},
 		],
 		positions = [],
 		xf = 1 / atlas.width,
@@ -543,7 +641,10 @@ function start() {
 		D.ontouchcancel = pointerUp
 	}
 
-	last = Date.now() - 16
+	now = Date.now()
+	last = now - 16
+	startTime = now
+
 	run()
 }
 
