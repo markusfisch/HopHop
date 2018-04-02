@@ -367,8 +367,8 @@ function createEntities() {
 	entities.push({
 		x: 1.2,
 		y: 0,
-		tx: .75,
-		ty: 0,
+		tx: -.7,
+		ty: .5,
 		speed: .02,
 		direction: -1,
 		idle: butterflyFrames,
@@ -433,8 +433,8 @@ function createEntities() {
 	entitiesLength = entities.length
 	for (var i = entitiesLength; i--;) {
 		var e = entities[i]
-		e.tx = typeof e.tx == 'undefined' ? e.x : 0
-		e.ty = typeof e.ty == 'undefined' ? e.y : 0
+		e.tx = typeof e.tx === 'undefined' ? e.x : e.tx
+		e.ty = typeof e.ty === 'undefined' ? e.y : e.ty
 		e.idleLength = e.idle ? e.idle.length : 0
 		e.moveLength = e.move ? e.move.length : 0
 		e.frame = 0
