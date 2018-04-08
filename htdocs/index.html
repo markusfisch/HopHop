@@ -271,13 +271,16 @@ function run() {
 			wx = bunny.x
 			wy = bunny.y
 		}
-		drawSeconds(secsToWin)
 	} else {
 		wx = wy = 0
 	}
 
 	for (var i = entitiesLength; i--;) {
 		drawEntity(entities[i], wx, wy)
+	}
+
+	if (won) {
+		drawSeconds(secsToWin)
 	}
 }
 
@@ -423,7 +426,6 @@ function createEntities() {
 
 	for (var i = 24; i--;) {
 		entities.push({
-			show: true,
 			x: random() * 3 - 1.5,
 			y: random() * 3 * yMax - yMax * 1.5,
 			idle: [getRandomGrass()],
