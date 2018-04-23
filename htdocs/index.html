@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
 <meta name="theme-color" content="#64c46f"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
@@ -153,7 +153,7 @@ function drawSprite(sprite, x, y, wm, hm) {
 	gl.vertexAttribPointer(texturePositionLoc, 2, gl.FLOAT, gl.FALSE, 0,
 		sprite.index << 5)
 
-	transformation[0] = transformation[8] = sprite.w * (wm || 1)
+	transformation[0] = sprite.w * (wm || 1)
 	transformation[4] = sprite.h * (hm || 1)
 
 	transformation[6] = x
@@ -164,7 +164,7 @@ function drawSprite(sprite, x, y, wm, hm) {
 }
 
 function drawSeconds(s) {
-	s = s + ''
+	s += ''
 	var sec = sprites[SEC],
 		chars = s.length,
 		w = chars * digitWidth + sec.w,
@@ -245,8 +245,12 @@ function setTarget(e, x, y) {
 }
 
 function input() {
-	if (!won && pointersLength > 0) {
-		setTarget(bunny, pointersX[0], pointersY[0])
+	if (pointersLength > 0) {
+		if (!won) {
+			setTarget(bunny, pointersX[0], pointersY[0])
+		} else if (now - won > 3000) {
+			resize()
+		}
 	}
 }
 
@@ -313,9 +317,6 @@ function setPointer(event, down) {
 
 function pointerUp(event) {
 	setPointer(event, false)
-	if (won && now - won > 3000) {
-		window.location.reload()
-	}
 }
 
 function pointerMove(event) {
@@ -487,9 +488,15 @@ function resize() {
 		scale(sprites[id])
 	}
 
-	digitWidth = sprites[DIGIT0].w * 2 + scaleFactor
-	digitHeight = sprites[DIGIT0].h
+	var digit = sprites[DIGIT0]
+	digitWidth = digit.w * 2 + scaleFactor
+	digitHeight = digit.h
+
 	seed = M.PI
+	startTime = now
+	won = 0
+
+	createEntities()
 }
 
 function calculateSpriteRects() {
@@ -625,7 +632,6 @@ function start() {
 
 	W.onresize = resize
 	resize()
-	createEntities()
 
 	D.onkeydown = keyDown
 	D.onkeyup = keyUp
@@ -643,10 +649,7 @@ function start() {
 		D.ontouchcancel = pointerUp
 	}
 
-	now = Date.now()
-	last = now - 16
-	startTime = now
-
+	last = Date.now() - 16
 	run()
 }
 
