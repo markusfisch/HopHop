@@ -7,9 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="msapplication-navbutton-color" content="#64c46f"/>
+<link rel="shortcut icon" href="favicon.ico"/>
+<link rel="apple-touch-icon-precomposed" href="icon_ios.png"/>
+<link rel="manifest" href="manifest.json"/>
 <title>Hop Hop</title>
 <style>
-
 html, body {
 	margin: 0; padding: 0;
 	background: #111;
@@ -29,13 +31,11 @@ canvas {
 	width: 100%;
 	height: 100%;
 }
-
 </style>
 </head>
 <body>
 <canvas id="Canvas">Sorry, this browser cannot render this content.</canvas>
 <script id="VertexShader" type="x-shader/x-vertex">
-
 attribute vec2 vertexPosition;
 attribute vec2 texturePosition;
 
@@ -52,10 +52,8 @@ void main() {
 
 	textureUV = texturePosition;
 }
-
 </script>
 <script id="FragmentShader" type="x-shader/x-fragment">
-
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -69,10 +67,8 @@ uniform sampler2D texture;
 void main() {
 	gl_FragColor = texture2D(texture, textureUV.st).rgba;
 }
-
 </script>
 <script>
-
 'use strict'
 
 var M = Math,
@@ -712,7 +708,6 @@ function load() {
 }
 
 W.onload = load
-
 </script>
 </body>
 </html>
