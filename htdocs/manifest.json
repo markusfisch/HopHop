@@ -1,12 +1,19 @@
 {
-	"name": "HopHop",
+	"name": "Hop Hop",
 	"icons": [
 		{
-			"src": "icon.png",
-			"sizes": "128x128",
-			"type": "image/png"
+			"src": "icon_192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "icon_512.png",
+			"type": "image/png",
+			"sizes": "512x512"
 		}
 	],
 	"start_url": "index.html",
-	"display": "standalone"
+	"background_color": "#58ad62",
+	"display": "standalone",
+	"theme_color": "#64c46f"
 }
